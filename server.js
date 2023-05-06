@@ -2,7 +2,7 @@ require('dotenv').config();
 
 const express = require('express');
 const mongoose = require('mongoose');
-const encrypt = require('mongoose-encryption');
+const md5 = require('md5');
 
 const app = express();
 
@@ -13,14 +13,9 @@ mongoose.connect('mongodb://localhost:27017/userDB', {
   useNewUrlParser: true,
 });
 
-const userSchema = new mongoose.Schema({
+const userSchema = mongoose.Schema({
   email: String,
   pass: String,
-});
-
-userSchema.plugin(encrypt, {
-  secret: process.env.SECRET,
-  encryptedFields: ['pass'],
 });
 
 const User = mongoose.model('User', userSchema);
@@ -33,7 +28,7 @@ app.post('/register', (req, res) => {
   const { email, pass } = req.body;
   const newUser = new User({
     email,
-    pass,
+    pass: md5(pass),
   });
 
   newUser
@@ -52,7 +47,7 @@ app.post('/login', (req, res) => {
   User.findOne({ email })
     .then((user) => {
       if (user) {
-        if (user.pass === pass) {
+        if (user.pass === md5(pass)) {
           res.send('Usuário logado com sucesso');
         } else {
           res.send('Credenciais inválidas');
