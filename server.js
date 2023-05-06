@@ -2,9 +2,10 @@ require('dotenv').config();
 
 const express = require('express');
 const mongoose = require('mongoose');
-const md5 = require('md5');
+const bcrypt = require('bcrypt');
 
 const app = express();
+const saltRounds = 12;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -26,19 +27,22 @@ app.get('/', (req, res) => {
 
 app.post('/register', (req, res) => {
   const { email, pass } = req.body;
-  const newUser = new User({
-    email,
-    pass: md5(pass),
-  });
 
-  newUser
-    .save()
-    .then((err) => {
-      res.send('usuário criado com sucesso');
-    })
-    .catch((err) => {
-      console.log(err);
+  bcrypt.hash(pass, saltRounds, (err, hash) => {
+    const newUser = new User({
+      email,
+      pass: hash,
     });
+
+    newUser
+      .save()
+      .then((err) => {
+        res.send('usuário criado com sucesso');
+      })
+      .catch((err) => {
+        console.log(err);
+      });
+  });
 });
 
 app.post('/login', (req, res) => {
@@ -47,11 +51,13 @@ app.post('/login', (req, res) => {
   User.findOne({ email })
     .then((user) => {
       if (user) {
-        if (user.pass === md5(pass)) {
-          res.send('Usuário logado com sucesso');
-        } else {
-          res.send('Credenciais inválidas');
-        }
+        bcrypt.compare(pass, user.pass, (err, result) => {
+          if (result === true) {
+            res.send('Usuário logado com sucesso');
+          } else {
+            res.send('Credenciais inválidas');
+          }
+        });
       } else {
         res.send('Credenciais inválidas');
       }
